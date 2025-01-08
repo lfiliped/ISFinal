@@ -1,0 +1,132 @@
+version: "3.9"
+
+services:
+  grpc-server:
+    build: ./grpc-server
+    ports:
+      - "50051:50051"
+    volumes:
+      - grpc-server:/app/media
+    environment:
+      - GRPC_SERVER_PORT=50051
+      - MAX_WORKERS=10
+      - MEDIA_PATH=/app/media
+      - DBNAME=mydatabase
+      - DBUSERNAME=myuser
+      - DBPASSWORD=mypassword
+      - DBHOST=db
+      - DBPORT=5432
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=user
+      - RABBITMQ_PW=password
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  rest-api-server:
+    build: ./rest_api_server
+    ports:
+      - "8000:8000"
+    environment:
+      - GRPC_PORT=50051
+      - GRPC_HOST=grpc-server
+      - DBNAME=mydatabase
+      - DBUSERNAME=myuser
+      - DBPASSWORD=mypassword
+      - DBHOST=db
+      - DBPORT=5432
+      - DJANGO_ALLOWED_HOSTS=rest-api-server,localhost,127.0.0.1
+      - DJANGO_DEBUG=True  # Se necessário
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=user
+      - RABBITMQ_PW=password
+    depends_on:
+      db:
+        condition: service_healthy
+      grpc-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  worker:
+    build: ./worker-rabbit-csv
+    ports:
+      - "8003:8003"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=user
+      - RABBITMQ_PW=password
+      - DBNAME=mydatabase
+      - DBUSERNAME=myuser
+      - DBPASSWORD=mypassword
+      - DBHOST=db
+      - DBPORT=5432
+    depends_on:
+      db:
+        condition: service_healthy
+      grpc-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  graphql-server:
+    build:
+      context: ./graphql-server
+    ports:
+      - "8001:8000"  # Mapeando a porta 8001 para acessar o servidor GraphQL
+    volumes:
+      - ./graphql-server:/app
+    environment:
+      DBNAME: mydatabase
+      DBUSERNAME: myuser
+      DBPASSWORD: mypassword
+      DBHOST: db
+      DBPORT: 5432
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  grpc-server:
+  pgdata:
+  rabbitmq_data:

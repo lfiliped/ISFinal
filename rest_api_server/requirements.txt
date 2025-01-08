@@ -1,0 +1,10 @@
+django
+djangorestframework
+django-cors-headers
+django_pg8000
+grpcio
+grpcio-tools
+pika
+graphene-django
+lxml>=4.9.3
+requests

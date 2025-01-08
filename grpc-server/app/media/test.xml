@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Root>
+  <Record>
+    <Row_ID>1</Row_ID>
+    <Order_ID>CA-2016-152156</Order_ID>
+    <Order_Date>8/11/2016</Order_Date>
+    <Ship_Date>11/11/2016</Ship_Date>
+    <Ship_Mode>Second Class</Ship_Mode>
+    <Customer_ID>CG-12520</Customer_ID>
+    <Customer_Name>Claire Gute</Customer_Name>
+    <Segment>Consumer</Segment>
+    <Country>United States</Country>
+    <City>Henderson</City>
+    <State>Kentucky</State>
+    <Postal_Code>42420</Postal_Code>
+    <Region>South</Region>
+    <Retail_Sales_People>Cassandra Brandow</Retail_Sales_People>
+    <Product_ID>FUR-BO-10001798</Product_ID>
+    <Category>Furniture</Category>
+    <Sub_Category>Bookcases</Sub_Category>
+    <Product_Name>Bush Somerset Collection Bookcase</Product_Name>
+    <Returned>Not</Returned>
+    <Sales>261.96</Sales>
+    <Quantity>2</Quantity>
+    <Discount>0.0</Discount>
+    <Profit>41.91</Profit>
+    <Latitude>37.8367513</Latitude>
+    <Longitude>-87.5907631</Longitude>
+  </Record>
+  <Record>
+    <Row_ID>2</Row_ID>
+    <Order_ID>CA-2016-152156</Order_ID>
+    <Order_Date>8/11/2016</Order_Date>
+    <Ship_Date>11/11/2016</Ship_Date>
+    <Ship_Mode>Second Class</Ship_Mode>
+    <Customer_ID>CG-12520</Customer_ID>
+    <Customer_Name>Claire Gute</Customer_Name>
+    <Segment>Consumer</Segment>
+    <Country>United States</Country>
+    <City>Henderson</City>
+    <State>Kentucky</State>
+    <Postal_Code>42420</Postal_Code>
+    <Region>South</Region>
+    <Retail_Sales_People>Cassandra Brandow</Retail_Sales_People>
+    <Product_ID>FUR-CH-10000454</Product_ID>
+    <Category>Furniture</Category>
+    <Sub_Category>Chairs</Sub_Category>
+    <Product_Name>Hon Deluxe Fabric Upholstered Stacking Chairs, Rounded Back</Product_Name>
+    <Returned>Not</Returned>
+    <Sales>731.94</Sales>
+    <Quantity>3</Quantity>
+    <Discount>0.0</Discount>
+    <Profit>219.58</Profit>
+    <Latitude>37.8367513</Latitude>
+    <Longitude>-87.5907631</Longitude>
+  </Record>
+  <Record>
+    <Row_ID>3</Row_ID>
+    <Order_ID>CA-2016-138688</Order_ID>
+    <Order_Date>12/6/2016</Order_Date>
+    <Ship_Date>12/6/2016</Ship_Date>
+    <Ship_Mode>Second Class</Ship_Mode>
+    <Customer_ID>DV-13045</Customer_ID>
+    <Customer_Name>Darrin Van Huff</Customer_Name>
+    <Segment>Corporate</Segment>
+    <Country>United States</Country>
+    <City>Los Angeles</City>
+    <State>California</State>
+    <Postal_Code>90036</Postal_Code>
+    <Region>West</Region>
+    <Retail_Sales_People>Anna Andreadi</Retail_Sales_People>
+    <Product_ID>OFF-LA-10000240</Product_ID>
+    <Category>Office Supplies</Category>
+    <Sub_Category>Labels</Sub_Category>
+    <Product_Name>Self-Adhesive Address Labels for Typewriters by Universal</Product_Name>
+    <Returned>Not</Returned>
+    <Sales>14.62</Sales>
+    <Quantity>2</Quantity>
+    <Discount>0.0</Discount>
+    <Profit>6.87</Profit>
+    <Latitude>34.0536909</Latitude>
+    <Longitude>-118.242766</Longitude>
+  </Record>
+  <Record>
+    <Row_ID>4</Row_ID>
+    <Order_ID>US-2015-108966</Order_ID>
+    <Order_Date>11/10/2015</Order_Date>
+    <Ship_Date>11/10/2015</Ship_Date>
+    <Ship_Mode>Standard Class</Ship_Mode>
+    <Customer_ID>SO-20335</Customer_ID>
+    <Customer_Name>Sean O'Donnell</Customer_Name>
+    <Segment>Consumer</Segment>
+    <Country>United States</Country>
+    <City>Fort Lauderdale</City>
+    <State>Florida</State>
+    <Postal_Code>33311</Postal_Code>
+    <Region>South</Region>
+    <Retail_Sales_People>Cassandra Brandow</Retail_Sales_People>
+    <Product_ID>FUR-TA-10000577</Product_ID>
+    <Category>Furniture</Category>
+    <Sub_Category>Tables</Sub_Category>
+    <Product_Name>Bretford CR4500 Series Slim Rectangular Table</Product_Name>
+    <Returned>Not</Returned>
+    <Sales>957.58</Sales>
+    <Quantity>5</Quantity>
+    <Discount>0.45</Discount>
+    <Profit>-383.03</Profit>
+    <Latitude>26.1223084</Latitude>
+    <Longitude>-80.1433786</Longitude>
+  </Record>
+</Root>

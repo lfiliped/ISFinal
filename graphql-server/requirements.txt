@@ -1,0 +1,6 @@
+django
+graphene-django
+psycopg2==2.9.3
+django_pg8000
+pika
+requests

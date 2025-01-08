@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="Root">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="Record" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="Row_ID" type="xs:string"/>
+                            <xs:element name="Order_ID" type="xs:string"/>
+                            <xs:element name="Order_Date" type="xs:string"/>
+                            <xs:element name="Ship_Date" type="xs:string"/>
+                            <xs:element name="Ship_Mode" type="xs:string"/>
+                            <xs:element name="Customer_ID" type="xs:string"/>
+                            <xs:element name="Customer_Name" type="xs:string"/>
+                            <xs:element name="Segment" type="xs:string"/>
+                            <xs:element name="Country" type="xs:string"/>
+                            <xs:element name="City" type="xs:string"/>
+                            <xs:element name="State" type="xs:string"/>
+                            <xs:element name="Postal_Code" type="xs:string"/>
+                            <xs:element name="Region" type="xs:string"/>
+                            <xs:element name="Retail_Sales_People" type="xs:string"/>
+                            <xs:element name="Product_ID" type="xs:string"/>
+                            <xs:element name="Category" type="xs:string"/>
+                            <xs:element name="Sub_Category" type="xs:string"/>
+                            <xs:element name="Product_Name" type="xs:string"/>
+                            <xs:element name="Returned" type="xs:string"/>
+                            <xs:element name="Sales" type="xs:decimal"/>
+                            <xs:element name="Quantity" type="xs:integer"/>
+                            <xs:element name="Discount" type="xs:decimal"/>
+                            <xs:element name="Profit" type="xs:decimal"/>
+                            <xs:element name="Latitude" type="xs:decimal"/>
+                            <xs:element name="Longitude" type="xs:decimal"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
