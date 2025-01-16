@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { List, ListItem, ListItemText, Box, ListSubheader, ListItemButton, TextField, Button } from '@mui/material';
 import UploadFilesDialog from './UploadFilesDialog';
 import XmlViewerDialog from './XmlViewer';
+import ConvertCsvDialog from './ConvertCsvDialog';
 import SortXmlDialog from './SortXmlDialog'; // Importação do SortXmlDialog
 import { Search } from '@mui/icons-material';
 import { redirect } from 'next/navigation';
@@ -12,6 +13,8 @@ const Sidebar = ({ searchValue } : { searchValue: string }) => {
     const uploadFilesDialogRef  = useRef<any>(null);
     const xmlViewerDialog       = useRef<any>(null);
     const sortXmlDialogRef      = useRef<any>(null); // Referência para SortXmlDialog
+    const convertCsvDialogRef   = useRef<any>(null);
+    
 
     const [searchByCityForm, setSearchByCityForm] = React.useState({
         city: searchValue
@@ -27,6 +30,11 @@ const Sidebar = ({ searchValue } : { searchValue: string }) => {
         if(!xmlViewerDialog || !xmlViewerDialog.current) return;
 
         xmlViewerDialog.current.handleClickOpen(); // Chama a função do XmlViewerDialog
+    };
+
+    const handleOpenConvertCsvDialog = () => {
+        if (!convertCsvDialogRef.current) return;
+        convertCsvDialogRef.current.handleClickOpen();
     };
 
     const handleSortXmlDialog = () => {
@@ -47,6 +55,7 @@ const Sidebar = ({ searchValue } : { searchValue: string }) => {
             <UploadFilesDialog ref={uploadFilesDialogRef} />
             <XmlViewerDialog ref={xmlViewerDialog} />
             <SortXmlDialog ref={sortXmlDialogRef} /> {/* Inclusão do SortXmlDialog */}
+            <ConvertCsvDialog ref={convertCsvDialogRef} />
         
             <List
                 sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}
@@ -73,12 +82,16 @@ const Sidebar = ({ searchValue } : { searchValue: string }) => {
                 <ListItemButton onClick={handleOpenUploadFilesDialog}>
                     <ListItemText className="text-gray-600" primary="Upload File" />
                 </ListItemButton>
+                <ListItemButton onClick={handleOpenConvertCsvDialog}>
+                    <ListItemText className="text-gray-600" primary="Convert CSV to XML" />
+                </ListItemButton>
                 <ListItemButton onClick={handleXmlViewerDialog}>
-                    <ListItemText className="text-gray-600" primary="XMLs" />
+                    <ListItemText className="text-gray-600" primary="Pesquisa nos XMLs" />
                 </ListItemButton>
                 <ListItemButton onClick={handleSortXmlDialog}> {/* Novo botão para Sort XML */}
-                    <ListItemText className="text-gray-600" primary="Sort XML" />
+                    <ListItemText className="text-gray-600" primary="Ordenar XML" />
                 </ListItemButton>
+                
             </List>
         </>
     )
