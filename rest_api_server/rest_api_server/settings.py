@@ -73,6 +73,9 @@ CORS_ALLOW_HEADERS = [
 
 ROOT_URLCONF = 'rest_api_server.urls'
 
+CSV_PATH = os.getenv('CSV_PATH', '/app/csv')
+XML_PATH = os.getenv('XML_PATH', '/app/xml')
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

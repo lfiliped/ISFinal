@@ -16,6 +16,8 @@ from settings import (
     GRPC_SERVER_PORT,
     MAX_WORKERS,
     MEDIA_PATH,
+    CSV_PATH,
+    XML_PATH,
     DBNAME,
     DBUSERNAME,
     DBPASSWORD,
@@ -31,6 +33,7 @@ from settings import (
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 logger = logging.getLogger("FileService")
+
 
 def geocode_csv(input_csv_path, output_csv_path):
     geolocator = Nominatim(user_agent="grpc_geocoder")
@@ -69,6 +72,7 @@ def geocode_csv(input_csv_path, output_csv_path):
         writer.writeheader()
         writer.writerows(updated_rows)
 
+
 def SendRabbitMQMessage(message):
     """
     Função auxiliar para enviar mensagens para o RabbitMQ.
@@ -92,13 +96,23 @@ def SendRabbitMQMessage(message):
     except Exception as e:
         logger.error(f"Erro ao enviar mensagem para RabbitMQ: {e}", exc_info=True)
 
+
 class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
     def __init__(self, *args, **kwargs):
         pass
 
     def SendFile(self, request, context):
-        os.makedirs(MEDIA_PATH, exist_ok=True)
-        file_path = os.path.join(MEDIA_PATH, request.file_name + request.file_mime)
+        # Decide o diretório de destino com base na extensão do arquivo
+        ext = request.file_mime.lower()
+        if ext == ".csv":
+            target_path = CSV_PATH
+        elif ext == ".xml":
+            target_path = XML_PATH
+        else:
+            target_path = MEDIA_PATH
+
+        os.makedirs(target_path, exist_ok=True)
+        file_path = os.path.join(target_path, request.file_name + request.file_mime)
         ficheiro_em_bytes = request.file
         with open(file_path, 'wb') as f:
             f.write(ficheiro_em_bytes)
@@ -170,7 +184,6 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 cursor.close()
                 conn.close()
 
-
     def SendFileChunks(self, request_iterator, context):
         try:
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PW)
@@ -196,7 +209,6 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             return server_services_pb2.SendFileChunksResponse(message="Failed to send chunks to RabbitMQ.")
 
-
     def ConvertCSVToXML(self, request, context):
         """
         Converte um arquivo CSV para XML e envia uma mensagem para o RabbitMQ.
@@ -213,12 +225,12 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 SendRabbitMQMessage(f"Erro: Nome do arquivo inválido: '{file_name}'")
                 return server_services_pb2.ConvertCSVToXMLResponse(success=False, message="Nome do arquivo inválido.")
 
-            # Construindo o caminho completo do arquivo
-            csv_path = os.path.join(MEDIA_PATH, file_name)
-            enriched_csv_path = os.path.join(MEDIA_PATH, f"enriched_{file_name}")
-            logger.info(f"Caminho completo do arquivo: {csv_path}")
+            # Construindo o caminho completo do arquivo CSV utilizando o volume CSV
+            csv_path = os.path.join(CSV_PATH, file_name)
+            enriched_csv_path = os.path.join(CSV_PATH, f"enriched_{file_name}")
+            logger.info(f"Caminho completo do CSV: {csv_path}")
 
-            # Verificando a existência do arquivo
+            # Verificando a existência do arquivo CSV
             if not os.path.exists(csv_path):
                 context.set_details("O arquivo CSV especificado não foi encontrado.")
                 context.set_code(grpc.StatusCode.NOT_FOUND)
@@ -229,7 +241,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             geocode_csv(csv_path, enriched_csv_path)
             logger.info(f"CSV enriquecido salvo em: {enriched_csv_path}")
 
-            # Lendo o conteúdo do CSV enriquecido
+            # Lendo o conteúdo do CSV enriquecido (apenas para log)
             with open(enriched_csv_path, 'r', encoding='utf-8') as file:
                 csv_content = file.read()
 
@@ -246,8 +258,8 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                     child = etree.SubElement(record, sanitized_col_name)
                     child.text = str(value)
 
-            # Salvando o arquivo XML
-            output_path = os.path.join(MEDIA_PATH, file_name.replace('.csv', '.xml'))
+            # Salvando o arquivo XML no volume XML
+            output_path = os.path.join(XML_PATH, file_name.replace('.csv', '.xml'))
             tree = etree.ElementTree(root)
             tree.write(output_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
@@ -266,7 +278,6 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             return server_services_pb2.ConvertCSVToXMLResponse(success=False, message=str(e))
 
-
     def ValidateXML(self, request, context):
         """
         Valida um arquivo XML contra um esquema XSD.
@@ -278,9 +289,9 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             logger.info(f"Nome do arquivo XML recebido: '{xml_file_name}'")
             logger.info(f"Nome do arquivo XSD recebido: '{xsd_file_name}'")
 
-            # Construindo os caminhos completos dos arquivos
-            xml_path = os.path.join(MEDIA_PATH, xml_file_name)
-            xsd_path = os.path.join(MEDIA_PATH, xsd_file_name)
+            # Construindo os caminhos completos dos arquivos utilizando o volume XML
+            xml_path = os.path.join(XML_PATH, xml_file_name)
+            xsd_path = os.path.join(XML_PATH, xsd_file_name)
             logger.info(f"Caminho do arquivo XML: {xml_path}")
             logger.info(f"Caminho do arquivo XSD: {xsd_path}")
 
@@ -314,7 +325,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             logger.error(f"Erro ao validar XML: {e}", exc_info=True)
             context.set_details(f"Erro: {str(e)}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            return server_services_pb2.ValidateXMLResponse(success=False, message=str(e))   
+            return server_services_pb2.ValidateXMLResponse(success=False, message=str(e))
 
     def TextSearch(self, request, context):
         """
@@ -326,8 +337,8 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             search_term = request.search_term.strip()
             logger.info(f"Arquivo XML: '{xml_file_name}', Termo de pesquisa: '{search_term}'")
 
-            # Construindo o caminho completo do arquivo XML
-            xml_path = os.path.join(MEDIA_PATH, xml_file_name)
+            # Construindo o caminho completo do arquivo XML utilizando o volume XML
+            xml_path = os.path.join(XML_PATH, xml_file_name)
             if not os.path.exists(xml_path):
                 context.set_details("Arquivo XML não encontrado.")
                 context.set_code(grpc.StatusCode.NOT_FOUND)
@@ -363,16 +374,14 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
 
     def ListXMLFiles(self, request, context):
         """
-        Lista todos os arquivos XML disponíveis no diretório de mídia.
+        Lista todos os arquivos XML disponíveis no diretório XML.
         """
         try:
-            media_path = MEDIA_PATH  # Utilizar a variável definida nas configurações
-            if not os.path.exists(media_path):
-                context.set_details("Diretório de mídia não encontrado.")
+            if not os.path.exists(XML_PATH):
+                context.set_details("Diretório XML não encontrado.")
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 return server_services_pb2.ListXMLFilesResponse()
-
-            xml_files = [f for f in os.listdir(media_path) if f.endswith('.xml')]
+            xml_files = [f for f in os.listdir(XML_PATH) if f.endswith('.xml')]
             return server_services_pb2.ListXMLFilesResponse(file_names=xml_files)
         except Exception as e:
             context.set_details(str(e))
@@ -381,16 +390,14 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
 
     def ListCSVFiles(self, request, context):
         """
-        Lista todos os arquivos CSV disponíveis no diretório de mídia.
+        Lista todos os arquivos CSV disponíveis no diretório CSV.
         """
         try:
-            media_path = MEDIA_PATH  # Utilizar a variável definida nas configurações
-            if not os.path.exists(media_path):
-                context.set_details("Diretório de mídia não encontrado.")
+            if not os.path.exists(CSV_PATH):
+                context.set_details("Diretório CSV não encontrado.")
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 return server_services_pb2.ListCSVFilesResponse()
-
-            csv_files = [f for f in os.listdir(media_path) if f.endswith('.csv')]
+            csv_files = [f for f in os.listdir(CSV_PATH) if f.endswith('.csv')]
             return server_services_pb2.ListCSVFilesResponse(file_names=csv_files)
         except Exception as e:
             context.set_details(str(e))
@@ -408,8 +415,8 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             order = request.order.strip().lower()
             logger.info(f"Ordenando XML: '{xml_file_name}' por '{sort_by}' em ordem '{order}'")
 
-            # Caminho do arquivo XML
-            xml_path = os.path.join(MEDIA_PATH, xml_file_name)
+            # Caminho do arquivo XML utilizando o volume XML
+            xml_path = os.path.join(XML_PATH, xml_file_name)
 
             # Verificar se o arquivo existe
             if not os.path.exists(xml_path):
@@ -446,8 +453,8 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 reverse=reverse,
             )
 
-            # Salvar o XML ordenado
-            sorted_xml_path = os.path.join(MEDIA_PATH, f"sorted_{xml_file_name}")
+            # Salvar o XML ordenado no volume XML
+            sorted_xml_path = os.path.join(XML_PATH, f"sorted_{xml_file_name}")
             tree.write(sorted_xml_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
             logger.info(f"XML ordenado salvo em: '{sorted_xml_path}'")
@@ -478,6 +485,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             return server_services_pb2.SortXMLResponse(success=False, message=str(e))
 
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=MAX_WORKERS))
     server_services_pb2_grpc.add_SendFileServiceServicer_to_server(SendFileService(), server)
@@ -485,6 +493,7 @@ def serve():
     server.start()
     logger.info(f"gRPC server started on port {GRPC_SERVER_PORT}")
     server.wait_for_termination()
+
 
 if __name__ == "__main__":
     serve()

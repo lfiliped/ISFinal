@@ -8,11 +8,11 @@ import api.grpc.server_services_pb2 as server_services_pb2
 import api.grpc.server_services_pb2_grpc as server_services_pb2_grpc
 import os
 from lxml import etree
-from rest_api_server.settings import GRPC_PORT, GRPC_HOST, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PW
+from rest_api_server.settings import GRPC_PORT, GRPC_HOST, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PW, CSV_PATH, XML_PATH
 import lxml.etree as ET
 import pika
 
-
+# Configurações do RabbitMQ a partir das variáveis de ambiente
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "user")
 RABBITMQ_PW = os.getenv("RABBITMQ_PW", "password")
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
@@ -34,7 +34,7 @@ class FileUploadView(APIView):
             logger.error("Serializer errors: %s", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        # Obtem os arquivos (podem ser ambos, ou somente um deles)
+        # Obtém os arquivos (podem ser ambos ou somente um deles)
         csv_file = serializer.validated_data.get('file')
         schema_file = serializer.validated_data.get('schema_file')
         
@@ -91,15 +91,14 @@ class FileUploadView(APIView):
                 return Response({"error": f"gRPC call failed: {e.details()}"},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        # Se foi enviado o schema, processa-o
+        # Se foi enviado o schema (XML), processa-o
         if schema_file:
             schema_file_name, _ = os.path.splitext(schema_file.name)
             schema_file_content = schema_file.read()
             try:
-                # Aqui, em vez de usar um caminho fixo, usamos a variável MEDIA_PATH importada
-                media_path = "/app/media"  # Usa o mesmo MEDIA_PATH que o GRPC utiliza (ex.: "/app/media")
-                os.makedirs(media_path, exist_ok=True)
-                schema_path = os.path.join(media_path, schema_file_name)
+                # Usa o diretório XML definido na variável XML_PATH
+                os.makedirs(XML_PATH, exist_ok=True)
+                schema_path = os.path.join(XML_PATH, schema_file_name)
                 with open(schema_path, "wb") as f:
                     f.write(schema_file_content)
                 response_data["schema_file"] = schema_file_name
@@ -112,32 +111,32 @@ class FileUploadView(APIView):
 class ListXMLFilesView(APIView):
     def get(self, request):
         try:
-            # Conectar ao servidor gRPC
+            # Conectar ao servidor gRPC para listagem dos arquivos XML
             channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
             stub = server_services_pb2_grpc.SendFileServiceStub(channel)
             grpc_request = server_services_pb2.ListXMLFilesRequest()
             grpc_response = stub.ListXMLFiles(grpc_request)
             
-            # Converter RepeatedScalarContainer para uma lista Python
+            # Converter o resultado para uma lista Python
             file_names = list(grpc_response.file_names)
             
             return Response({"file_names": file_names}, status=status.HTTP_200_OK)
         except grpc.RpcError as e:
-            return Response({"error": f"gRPC call failed: {e.details()}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"gRPC call failed: {e.details()}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class ListCSVFilesView(APIView):
     def get(self, request):
         try:
-            # Conectar ao servidor gRPC
+            # Conectar ao servidor gRPC para listagem dos arquivos CSV
             channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
             stub = server_services_pb2_grpc.SendFileServiceStub(channel)
-            # Note: Certifique-se de que exista uma mensagem ListCSVFilesRequest no seu .proto
             grpc_request = server_services_pb2.ListCSVFilesRequest()
             grpc_response = stub.ListCSVFiles(grpc_request)
             
-            # Converter RepeatedScalarContainer para uma lista Python
+            # Converter o resultado para uma lista Python
             file_names = list(grpc_response.file_names)
             
             return Response({"file_names": file_names}, status=status.HTTP_200_OK)
@@ -163,7 +162,7 @@ class FileUploadChunksView(APIView):
             file_name, file_extension = os.path.splitext(file.name)
             file_content = file.read()
 
-            # Conectar ao RabbitMQ e enviar os chunks
+            # Enviar os chunks do arquivo CSV para o RabbitMQ
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PW)
             connection = pika.BlockingConnection(
                 pika.ConnectionParameters(
@@ -187,11 +186,10 @@ class FileUploadChunksView(APIView):
             except Exception as e:
                 logger.error(f"Erro ao enviar chunks para RabbitMQ: {e}")
                 return Response({"error": str(e)}, status=500)
-
             finally:
                 connection.close()
 
-            # Enviar o arquivo completo para gRPC
+            # Envia o arquivo completo via gRPC
             try:
                 channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
                 stub = server_services_pb2_grpc.SendFileServiceStub(channel)
@@ -220,8 +218,8 @@ class XMLFilterByCity(APIView):
             if not file_name or not xpath_query:
                 return Response({"error": "File name and XPath query are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Caminho do ficheiro XML
-            file_path = os.path.join("/app/media", file_name)
+            # O arquivo XML agora está no diretório definido por XML_PATH
+            file_path = os.path.join(XML_PATH, file_name)
             if not os.path.exists(file_path):
                 return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -230,7 +228,7 @@ class XMLFilterByCity(APIView):
             root = tree.getroot()
             result = root.xpath(xpath_query)
 
-            # Converter o resultado para string
+            # Converter os resultados para string
             output = [ET.tostring(element).decode("utf-8") for element in result]
             return Response({"result": output}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -282,16 +280,14 @@ class ValidateXMLView(APIView):
         if not xml_file or not xsd_file:
             return Response({"error": "Both XML file and XSD file are required."}, status=400)
 
-        # Definir o diretório de mídia e criar caso não exista
-        media_path = "/app/media"
-        os.makedirs(media_path, exist_ok=True)
+        # Salvar os arquivos no diretório XML
+        os.makedirs(XML_PATH, exist_ok=True)
 
-        # Salvar os arquivos recebidos no diretório de mídia
         xml_file_name = xml_file.name
         xsd_file_name = xsd_file.name
 
-        xml_path = os.path.join(media_path, xml_file_name)
-        xsd_path = os.path.join(media_path, xsd_file_name)
+        xml_path = os.path.join(XML_PATH, xml_file_name)
+        xsd_path = os.path.join(XML_PATH, xsd_file_name)
 
         with open(xml_path, 'wb') as f:
             f.write(xml_file.read())
@@ -316,12 +312,13 @@ class ValidateXMLView(APIView):
                 "message": grpc_response.message
             }, status=200 if grpc_response.success else 400)
         except grpc.RpcError as e:
-            return Response({"error": f"gRPC call failed: {e.details()}"}, status=500)
+            return Response({"error": f"gRPC call failed: {e.details()}"},
+                            status=500)
         
         
 class XMLTextSearchView(APIView):
     def post(self, request):
-        # Pegue os dados da solicitação
+        # Obter os dados da solicitação
         xml_file_name = request.data.get("xml_file_name")
         search_term = request.data.get("search_term")
 
@@ -342,12 +339,13 @@ class XMLTextSearchView(APIView):
             )
             grpc_response = stub.TextSearch(grpc_request)
 
-            # Converter grpc_response.results para uma lista serializável
+            # Converter os resultados para uma lista serializável
             results = list(grpc_response.results)
 
             return Response({"results": results}, status=status.HTTP_200_OK)
         except grpc.RpcError as e:
-            return Response({"error": f"gRPC call failed: {e.details()}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"gRPC call failed: {e.details()}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
 class SortXMLView(APIView):
@@ -355,7 +353,7 @@ class SortXMLView(APIView):
     Endpoint para ordenar elementos em um arquivo XML.
     """
     def post(self, request):
-        # Extraia os dados do corpo da requisição
+        # Extrair os dados do corpo da requisição
         xml_file_name = request.data.get("xml_file_name")
         sort_by = request.data.get("sort_by")
         order = request.data.get("order", "asc").lower()  # Padrão para ascendente
