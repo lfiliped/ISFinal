@@ -70,6 +70,11 @@ class SendFileServiceStub(object):
                 request_serializer=server__services__pb2.ListXMLFilesRequest.SerializeToString,
                 response_deserializer=server__services__pb2.ListXMLFilesResponse.FromString,
                 _registered_method=True)
+        self.ListCSVFiles = channel.unary_unary(
+                '/server_services.SendFileService/ListCSVFiles',
+                request_serializer=server__services__pb2.ListCSVFilesRequest.SerializeToString,
+                response_deserializer=server__services__pb2.ListCSVFilesResponse.FromString,
+                _registered_method=True)
 
 
 class SendFileServiceServicer(object):
@@ -118,6 +123,12 @@ class SendFileServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListCSVFiles(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SendFileServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -155,6 +166,11 @@ def add_SendFileServiceServicer_to_server(servicer, server):
                     servicer.ListXMLFiles,
                     request_deserializer=server__services__pb2.ListXMLFilesRequest.FromString,
                     response_serializer=server__services__pb2.ListXMLFilesResponse.SerializeToString,
+            ),
+            'ListCSVFiles': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListCSVFiles,
+                    request_deserializer=server__services__pb2.ListCSVFilesRequest.FromString,
+                    response_serializer=server__services__pb2.ListCSVFilesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -347,6 +363,33 @@ class SendFileService(object):
             '/server_services.SendFileService/ListXMLFiles',
             server__services__pb2.ListXMLFilesRequest.SerializeToString,
             server__services__pb2.ListXMLFilesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListCSVFiles(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/server_services.SendFileService/ListCSVFiles',
+            server__services__pb2.ListCSVFilesRequest.SerializeToString,
+            server__services__pb2.ListCSVFilesResponse.FromString,
             options,
             channel_credentials,
             insecure,

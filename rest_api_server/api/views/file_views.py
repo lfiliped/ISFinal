@@ -30,56 +30,84 @@ connection = pika.BlockingConnection(
 class FileUploadView(APIView):
     def post(self, request):
         serializer = FileUploadSerializer(data=request.data)
-        if serializer.is_valid():
-            file = serializer.validated_data['file']
-            if not file:
-                return Response({"error": "No file uploaded"}, status=400)
-
-            # Extrair informações do arquivo
-            file_name, file_extension = os.path.splitext(file.name)
-            file_content = file.read()
-
-            # Conectar ao RabbitMQ e enviar os chunks
-            credentials = pika.PlainCredentials("user", "password")  # Atualize com as credenciais corretas
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host="rabbitmq",  # Atualize para o nome correto do host RabbitMQ
-                    port=5672,
-                    credentials=credentials,
-                )
-            )
-            channel = connection.channel()
-            channel.queue_declare(queue="csv_chunks", durable=True)
-
-            # Enviar os chunks para o RabbitMQ
-            for chunk in file_content:
-                channel.basic_publish(exchange="", routing_key="csv_chunks", body=chunk)
-
-            # Enviar um marcador de EOF
-            channel.basic_publish(exchange="", routing_key="csv_chunks", body="__EOF__")
-            connection.close()
-
-            # Conectar ao gRPC e enviar o arquivo completo
-            channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
-            stub = server_services_pb2_grpc.SendFileServiceStub(channel)
-            request = server_services_pb2.SendFileRequestBody(
-                file_name=file_name,
-                file_mime=file_extension,
-                file=file_content,
-            )
+        if not serializer.is_valid():
+            logger.error("Serializer errors: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Obtem os arquivos (podem ser ambos, ou somente um deles)
+        csv_file = serializer.validated_data.get('file')
+        schema_file = serializer.validated_data.get('schema_file')
+        
+        # Se nenhum dos arquivos foi enviado, retorna erro
+        if not csv_file and not schema_file:
+            return Response({"error": "Nenhum arquivo foi enviado."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        response_data = {}
+        
+        # Se foi enviado o CSV, processa-o
+        if csv_file:
+            csv_file_name, csv_file_extension = os.path.splitext(csv_file.name)
+            csv_file_content = csv_file.read()
+            
+            # Envia os chunks do CSV para o RabbitMQ
             try:
-                response = stub.SendFile(request)
-                return Response(
-                    {"file_name": file_name, "file_extension": file_extension},
-                    status=status.HTTP_201_CREATED,
+                credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PW)
+                connection = pika.BlockingConnection(
+                    pika.ConnectionParameters(
+                        host=RABBITMQ_HOST,
+                        port=int(RABBITMQ_PORT),
+                        credentials=credentials,
+                    )
                 )
+                channel = connection.channel()
+                channel.queue_declare(queue="csv_chunks", durable=True)
+                
+                CHUNK_SIZE = 1024
+                for i in range(0, len(csv_file_content), CHUNK_SIZE):
+                    chunk = csv_file_content[i:i + CHUNK_SIZE]
+                    channel.basic_publish(exchange="", routing_key="csv_chunks", body=chunk)
+                channel.basic_publish(exchange="", routing_key="csv_chunks", body="__EOF__")
+            except Exception as e:
+                logger.error("Erro ao enviar chunks para RabbitMQ: %s", e)
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            finally:
+                connection.close()
+            
+            # Envia o CSV completo via gRPC
+            try:
+                grpc_channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
+                stub = server_services_pb2_grpc.SendFileServiceStub(grpc_channel)
+                grpc_request = server_services_pb2.SendFileRequestBody(
+                    file_name=csv_file_name,
+                    file_mime=csv_file_extension,
+                    file=csv_file_content,
+                )
+                grpc_response = stub.SendFile(grpc_request)
+                response_data["file_name"] = csv_file_name
+                response_data["file_extension"] = csv_file_extension
             except grpc.RpcError as e:
-                return Response(
-                    {"error": f"gRPC call failed: {e.details()}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                logger.error("Erro gRPC: %s", e.details())
+                return Response({"error": f"gRPC call failed: {e.details()}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Se foi enviado o schema, processa-o
+        if schema_file:
+            schema_file_name, _ = os.path.splitext(schema_file.name)
+            schema_file_content = schema_file.read()
+            try:
+                # Aqui, em vez de usar um caminho fixo, usamos a variável MEDIA_PATH importada
+                media_path = "/app/media"  # Usa o mesmo MEDIA_PATH que o GRPC utiliza (ex.: "/app/media")
+                os.makedirs(media_path, exist_ok=True)
+                schema_path = os.path.join(media_path, schema_file_name)
+                with open(schema_path, "wb") as f:
+                    f.write(schema_file_content)
+                response_data["schema_file"] = schema_file_name
+            except Exception as e:
+                logger.error("Erro ao salvar o arquivo de esquema: %s", e)
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 class ListXMLFilesView(APIView):
     def get(self, request):
@@ -99,6 +127,31 @@ class ListXMLFilesView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+class ListCSVFilesView(APIView):
+    def get(self, request):
+        try:
+            # Conectar ao servidor gRPC
+            channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
+            stub = server_services_pb2_grpc.SendFileServiceStub(channel)
+            # Note: Certifique-se de que exista uma mensagem ListCSVFilesRequest no seu .proto
+            grpc_request = server_services_pb2.ListCSVFilesRequest()
+            grpc_response = stub.ListCSVFiles(grpc_request)
+            
+            # Converter RepeatedScalarContainer para uma lista Python
+            file_names = list(grpc_response.file_names)
+            
+            return Response({"file_names": file_names}, status=status.HTTP_200_OK)
+        except grpc.RpcError as e:
+            return Response(
+                {"error": f"gRPC call failed: {e.details()}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
 class FileUploadChunksView(APIView):
     def post(self, request):
         serializer = FileUploadSerializer(data=request.data)
@@ -187,30 +240,37 @@ class XMLFilterByCity(APIView):
 class ConvertCSVtoXMLView(APIView):
     """
     Endpoint para converter CSV em XML usando o método ConvertCSVToXML do servidor gRPC.
+    Se o arquivo for enviado como form-data, é utilizado seu nome; se não, espera um JSON com 'file_name'.
+    O servidor gRPC usará esse nome para localizar o arquivo.
     """
     def post(self, request):
-        # Extrair o arquivo enviado no corpo da requisição
-        csv_file = request.FILES.get('file')  # Extrai o arquivo do form-data
-        if not csv_file:
-            return Response({"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Lê o conteúdo do arquivo CSV
-        csv_data = csv_file.read().decode('utf-8')
-
-        # Conectar ao servidor gRPC
-        channel = grpc.insecure_channel(f'{GRPC_HOST}:{GRPC_PORT}')
-        stub = server_services_pb2_grpc.SendFileServiceStub(channel)
-
-        # Chamar o método ConvertCSVToXML
+        # Tenta extrair o arquivo enviado via form-data
+        csv_file = request.FILES.get('file')
+        if csv_file:
+            file_name = csv_file.name
+        else:
+            # Se não houver arquivo em request.FILES, tenta extrair do JSON
+            file_name = request.data.get('file_name')
+        
+        if not file_name:
+            return Response({"error": "Nenhum arquivo CSV foi fornecido."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            request = server_services_pb2.ConvertCSVToXMLRequest(file_name=csv_file.name)
-            response = stub.ConvertCSVToXML(request)
+            # Conectar ao servidor gRPC
+            channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
+            stub = server_services_pb2_grpc.SendFileServiceStub(channel)
+            # Cria a requisição com o nome do arquivo recebido
+            grpc_request = server_services_pb2.ConvertCSVToXMLRequest(file_name=file_name)
+            grpc_response = stub.ConvertCSVToXML(grpc_request)
+            
             return Response({
-                "success": response.success,
-                "message": response.message
+                "success": grpc_response.success,
+                "message": grpc_response.message
             }, status=status.HTTP_200_OK)
         except grpc.RpcError as e:
-            return Response({"error": f"gRPC call failed: {e.details()}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"gRPC call failed: {e.details()}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
 class ValidateXMLView(APIView):

@@ -6,9 +6,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { Box, Tab, Tabs, TextField, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
+import { Box, Tab, Tabs, TextField, Select, MenuItem, InputLabel, FormControl, Typography } from "@mui/material";
 import { Search } from "@mui/icons-material";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -18,7 +18,6 @@ interface TabPanelProps {
 
 function CustomTabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
-
   return (
     <div
       role="tabpanel"
@@ -32,7 +31,6 @@ function CustomTabPanel(props: TabPanelProps) {
   );
 }
 
-  
 function a11yProps(index: number) {
   return {
     id: `simple-tab-${index}`,
@@ -43,16 +41,12 @@ function a11yProps(index: number) {
 const XmlViewerDialog = React.forwardRef((_, ref) => {
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState(0);
-  const [xmlFilteredBySearch, setXmlFilteredBySearch] = React.useState<string>(
-    "<result></result>"
-  );
-
+  const [xmlFilteredBySearch, setXmlFilteredBySearch] = React.useState<string>("<result></result>");
   const [searchForm, setSearchForm] = React.useState({
     xml_file_name: "",
     search_term: "",
   });
-
-  const [xmlFiles, setXmlFiles] = React.useState<string[]>([]); // Estado para armazenar a lista de arquivos XML
+  const [xmlFiles, setXmlFiles] = React.useState<string[]>([]); // Lista de arquivos XML disponíveis
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -103,7 +97,6 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     const params = {
@@ -112,12 +105,12 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
     };
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_REST_API_BASE_URL}/api/xml-text-search/`, { // Atualizado para o endpoint correto
+      const response = await fetch(`${process.env.NEXT_PUBLIC_REST_API_BASE_URL}/api/xml-text-search/`, {
         method: "POST",
-        body: JSON.stringify(params),
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(params),
       });
 
       if (!response.ok) {
@@ -127,7 +120,13 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
       }
 
       const data = await response.json();
-      setXmlFilteredBySearch(JSON.stringify(data.results, null, 2)); // Formatar a resposta para exibição
+      // Se data.results for um array, junta os registros em um único XML com uma tag Root
+      if (Array.isArray(data.results)) {
+        const joinedXml = `<Root>\n${data.results.join("\n")}\n</Root>`;
+        setXmlFilteredBySearch(joinedXml);
+      } else {
+        setXmlFilteredBySearch(data.results);
+      }
     } catch (error) {
       toast.error("Falha ao buscar resultados. Por favor, tente novamente.");
     }
@@ -135,27 +134,14 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
 
   return (
     <React.Fragment>
-      <ToastContainer />
-
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
+      <Dialog open={open} onClose={handleClose} aria-labelledby="alert-dialog-title" aria-describedby="alert-dialog-description">
         <DialogTitle id="alert-dialog-title">{"Visualizador de XML"}</DialogTitle>
-
         <DialogContent>
           <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={value}
-              onChange={handleChange}
-              aria-label="basic tabs example"
-            >
+            <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
               <Tab label="Pesquisa por Texto" {...a11yProps(0)} />
             </Tabs>
           </Box>
-
           <CustomTabPanel value={value} index={0}>
             <Box className="px-0" component="form" onSubmit={handleSubmit}>
               <FormControl fullWidth margin="normal">
@@ -164,9 +150,7 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
                   labelId="xml-file-name-label"
                   label="Nome do Arquivo XML"
                   value={searchForm.xml_file_name}
-                  onChange={(e) =>
-                    setSearchForm({ ...searchForm, xml_file_name: e.target.value })
-                  }
+                  onChange={(e) => setSearchForm({ ...searchForm, xml_file_name: e.target.value })}
                 >
                   {xmlFiles.length > 0 ? (
                     xmlFiles.map((fileName) => (
@@ -181,33 +165,22 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
                   )}
                 </Select>
               </FormControl>
-
               <TextField
                 label="Termo de Pesquisa"
                 fullWidth
                 margin="normal"
                 value={searchForm.search_term}
-                onChange={(e) =>
-                  setSearchForm({ ...searchForm, search_term: e.target.value })
-                }
+                onChange={(e) => setSearchForm({ ...searchForm, search_term: e.target.value })}
               />
-
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                startIcon={<Search />}
-              >
+              <Button fullWidth type="submit" variant="contained" startIcon={<Search />}>
                 Buscar
               </Button>
             </Box>
-
             <pre className="my-4 mx-0" style={{ fontFamily: "monospace" }}>
               <code>{xmlFilteredBySearch}</code>
             </pre>
           </CustomTabPanel>
         </DialogContent>
-
         <DialogActions>
           <Button onClick={handleClose}>Cancelar</Button>
         </DialogActions>

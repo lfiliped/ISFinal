@@ -379,6 +379,24 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             return server_services_pb2.ListXMLFilesResponse()
 
+    def ListCSVFiles(self, request, context):
+        """
+        Lista todos os arquivos CSV disponíveis no diretório de mídia.
+        """
+        try:
+            media_path = MEDIA_PATH  # Utilizar a variável definida nas configurações
+            if not os.path.exists(media_path):
+                context.set_details("Diretório de mídia não encontrado.")
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                return server_services_pb2.ListCSVFilesResponse()
+
+            csv_files = [f for f in os.listdir(media_path) if f.endswith('.csv')]
+            return server_services_pb2.ListCSVFilesResponse(file_names=csv_files)
+        except Exception as e:
+            context.set_details(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            return server_services_pb2.ListCSVFilesResponse()
+        
     def SortXML(self, request, context):
         """
         Ordena um arquivo XML com base em um campo específico e envia o resultado para o RabbitMQ.

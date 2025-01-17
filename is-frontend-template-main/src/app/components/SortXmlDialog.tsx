@@ -8,7 +8,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { Box, Tab, Tabs, TextField, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Sort } from "@mui/icons-material";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -18,7 +18,6 @@ interface TabPanelProps {
 
 function CustomTabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
-
   return (
     <div
       role="tabpanel"
@@ -112,7 +111,7 @@ const SortXmlDialog = React.forwardRef((_, ref) => {
     };
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_REST_API_BASE_URL}/api/sort-xml/`, { // Atualizado para usar a variável de ambiente
+      const response = await fetch(`${process.env.NEXT_PUBLIC_REST_API_BASE_URL}/api/sort-xml/`, {
         method: "POST",
         body: JSON.stringify(params),
         headers: {
@@ -137,8 +136,6 @@ const SortXmlDialog = React.forwardRef((_, ref) => {
 
   return (
     <React.Fragment>
-      <ToastContainer />
-
       <Dialog
         open={open}
         onClose={handleClose}
@@ -149,11 +146,7 @@ const SortXmlDialog = React.forwardRef((_, ref) => {
 
         <DialogContent>
           <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={value}
-              onChange={handleChange}
-              aria-label="sort xml tabs"
-            >
+            <Tabs value={value} onChange={handleChange} aria-label="sort xml tabs">
               <Tab label="Ordenar XML" {...a11yProps(0)} />
             </Tabs>
           </Box>
@@ -209,12 +202,7 @@ const SortXmlDialog = React.forwardRef((_, ref) => {
                 </Select>
               </FormControl>
 
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                startIcon={<Sort />}
-              >
+              <Button fullWidth type="submit" variant="contained" startIcon={<Sort />}>
                 Ordenar
               </Button>
             </Box>

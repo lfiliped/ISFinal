@@ -6,15 +6,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import {
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-} from "@mui/material";
-import { toast, ToastContainer } from "react-toastify";
+import { Box, FormControl, InputLabel, Select, MenuItem, Typography } from "@mui/material";
+import { toast } from "react-toastify";
 
 interface ConvertCsvDialogProps {}
 
@@ -40,7 +33,7 @@ const ConvertCsvDialog = React.forwardRef((props: ConvertCsvDialogProps, ref) =>
     setOpen(false);
   };
 
-  // Função para buscar os arquivos CSV disponíveis, usando o endpoint REST que lista arquivos CSV
+  // Função para buscar os arquivos CSV disponíveis, usando o endpoint REST que lista os arquivos CSV
   const fetchCsvFiles = async () => {
     try {
       const response = await fetch(
@@ -94,7 +87,6 @@ const ConvertCsvDialog = React.forwardRef((props: ConvertCsvDialogProps, ref) =>
 
   return (
     <React.Fragment>
-      <ToastContainer />
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle>Converter CSV para XML</DialogTitle>
         <DialogContent>
@@ -146,11 +138,7 @@ const ConvertCsvDialog = React.forwardRef((props: ConvertCsvDialogProps, ref) =>
           <Button onClick={handleClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !selectedCsv}
-            variant="contained"
-          >
+          <Button onClick={handleSubmit} disabled={loading || !selectedCsv} variant="contained">
             Converter
           </Button>
         </DialogActions>

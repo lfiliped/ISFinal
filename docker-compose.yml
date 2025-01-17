@@ -30,6 +30,8 @@ services:
     build: ./rest_api_server
     ports:
       - "8000:8000"
+    volumes:
+      - grpc-server:/app/media    # Monta o mesmo volume usado pelo grpc-server
     environment:
       - GRPC_PORT=50051
       - GRPC_HOST=grpc-server
@@ -39,7 +41,7 @@ services:
       - DBHOST=db
       - DBPORT=5432
       - DJANGO_ALLOWED_HOSTS=rest-api-server,localhost,127.0.0.1
-      - DJANGO_DEBUG=True  # Se necessário
+      - DJANGO_DEBUG=True
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=user
@@ -95,7 +97,7 @@ services:
     build:
       context: ./graphql-server
     ports:
-      - "8001:8000"  # Mapeando a porta 8001 para acessar o servidor GraphQL
+      - "8001:8000"
     volumes:
       - ./graphql-server:/app
     environment:
@@ -127,6 +129,6 @@ services:
       retries: 5
 
 volumes:
-  grpc-server:
-  pgdata:
-  rabbitmq_data:
+  grpc-server: {}
+  pgdata: {}
+  rabbitmq_data: {}
