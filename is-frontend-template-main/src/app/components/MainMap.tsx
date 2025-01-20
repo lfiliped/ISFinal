@@ -75,12 +75,18 @@ const LeafleatMap = ({ cities, updatePoint } : { cities: City[], updatePoint: (c
     }, [cities])
 
     const MapEvents = () => {
-        const map = useMap()
-
-        map.on("moveend", () => updateClusters(map))
-        
-        return null
-    }
+        const map = useMap();
+      
+        useEffect(() => {
+          const handleMoveEnd = () => updateClusters(map);
+          map.on("moveend", handleMoveEnd);
+          return () => {
+            map.off("moveend", handleMoveEnd);
+          };
+        }, [map]);
+      
+        return null;
+      };
 
     const onHandleDragMarkerOver = async (e: any, customerId: string) => {
         const _lat = e.target._latlng.lat

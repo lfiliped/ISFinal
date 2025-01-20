@@ -104,8 +104,8 @@ DATABASES = {
         'NAME': os.getenv('DBNAME', 'mydatabase'),
         'USER': os.getenv('DBUSERNAME', 'myuser'),
         'PASSWORD': os.getenv('DBPASSWORD', 'mypassword'),
-        'HOST': os.getenv('DBHOST', 'localhost'),
-        'PORT': os.getenv('DBPORT', '5435')
+        'HOST': os.getenv('DBHOST', 'db'),       # use 'db', pois é o nome do serviço no docker-compose
+        'PORT': os.getenv('DBPORT', '5432')        # use '5432', que é a porta interna do container de Postgres
     }
 }
 

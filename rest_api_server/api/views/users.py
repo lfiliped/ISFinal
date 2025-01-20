@@ -11,11 +11,10 @@ class GetAllOrders(APIView):
         
         orders = [
             {
-                "id": order[0],
-                "order_id": order[1],
-                "order_date": order[2],
-                "ship_date": order[3],
-                "customer_id": order[4]
+                "order_id": order[0],
+                "order_date": order[1],
+                "ship_date": order[2],
+                "customer_id": order[3]
             }
             for order in result
         ]

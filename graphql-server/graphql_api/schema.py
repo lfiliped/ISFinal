@@ -1,15 +1,28 @@
 import pika
 import json
 import graphene
+import requests
 from graphene_django.types import DjangoObjectType
 from .models import Order, Product, City
-import requests
+from datetime import datetime 
 
-# Definir o tipo de objeto para o modelo Order
+
+
+
+# Definir o tipo de objeto para o modelo Order com um campo customizado
 class OrderType(DjangoObjectType):
+    # Adiciona um campo customizado "customer_id" (será exposto como "customerId" em camelCase)
+    customer_id = graphene.String()
+
     class Meta:
         model = Order
-        fields = ("order_id", "customer_id", "order_date", "ship_date")
+        # Remova "customer_id" dos fields, pois não existe diretamente no modelo.
+        # Deixe apenas os campos existentes e o relacionamento "customer".
+        fields = ("order_id", "order_date", "ship_date", "customer")
+
+    def resolve_customer_id(self, info):
+        # Retorna o valor do "customer_id" do objeto relacionado (City)
+        return self.customer.customer_id
 
 # Definir o tipo de objeto para o modelo Product
 class ProductType(DjangoObjectType):
@@ -38,6 +51,9 @@ class Query(graphene.ObjectType):
 
     city_by_customer_id = graphene.Field(CityType, customer_id=graphene.String(required=True))
     cities = graphene.List(CityType, nome=graphene.String())
+    
+    # >>> NOVA QUERY: Consulta de orders via REST API <<<
+    orders_from_rest = graphene.List(OrderType)
 
     def resolve_all_orders(self, info, **kwargs):
         return Order.objects.all()
@@ -70,7 +86,7 @@ class Query(graphene.ObjectType):
 
     def resolve_orders_by_customer(self, info, customer_id=None):
         if customer_id:
-            return Order.objects.filter(customer_id=customer_id)
+            return Order.objects.filter(customer__customer_id=customer_id)
         return Order.objects.none()
 
     def resolve_city_by_customer_id(self, info, customer_id):
@@ -85,6 +101,45 @@ class Query(graphene.ObjectType):
             query = query.filter(nome__icontains=nome)
         return query
 
+    # >>> Resolver para orders_from_rest <<<
+    def resolve_orders_from_rest(self, info, **kwargs):
+        try:
+            url = "http://rest-api-server:8000/api/orders/"
+            response = requests.get(url, timeout=5)
+            print(f"Response status: {response.status_code}")
+            print(f"Response text: {response.text}")
+            if response.status_code == 200:
+                data = response.json()
+                # Se os dados estiverem sob a chave "orders" ou forem uma lista direta
+                orders = data if isinstance(data, list) else data.get("orders", [])
+                result = []
+                for o in orders:
+                    # Converter as strings de data para objetos date do Python
+                    order_date = (
+                        datetime.strptime(o.get("order_date"), "%Y-%m-%d").date()
+                        if o.get("order_date")
+                        else None
+                    )
+                    ship_date = (
+                        datetime.strptime(o.get("ship_date"), "%Y-%m-%d").date()
+                        if o.get("ship_date")
+                        else None
+                    )
+                    # Cria a instância de OrderType com os campos convertidos
+                    result.append(
+                        OrderType(
+                            order_id=o.get("order_id"),
+                            order_date=order_date,
+                            ship_date=ship_date,
+                        )
+                    )
+                return result
+            else:
+                return []
+        except Exception as e:
+            print(f"Erro ao consumir REST API: {e}")
+            return []
+
 # Mutation para criar uma ordem
 class CreateOrder(graphene.Mutation):
     class Arguments:
@@ -96,9 +151,15 @@ class CreateOrder(graphene.Mutation):
     order = graphene.Field(OrderType)
 
     def mutate(self, info, order_id, customer_id, order_date, ship_date):
+        # Para criar o order, precisamos obter o objeto da cidade usando o customer_id
+        from .models import City  # ou importe no início do arquivo, se preferir
+        try:
+            city = City.objects.get(customer_id=customer_id)
+        except City.DoesNotExist:
+            raise Exception("City not found")
         order = Order(
             order_id=order_id,
-            customer_id=customer_id,
+            customer=city,
             order_date=order_date,
             ship_date=ship_date,
         )
@@ -126,7 +187,6 @@ class CreateProduct(graphene.Mutation):
         )
         product.save()
         return CreateProduct(product=product)
-
 
 # Mutation para criar uma cidade
 class CreateCity(graphene.Mutation):
@@ -175,14 +235,11 @@ class SendMessageToRabbitMQ(graphene.Mutation):
             )
             channel = connection.channel()
             channel.queue_declare(queue="graphql_to_rest")
-
-            # Enviar mensagem como JSON
             channel.basic_publish(
                 exchange="",
                 routing_key="graphql_to_rest",
                 body=json.dumps({"message": message})
             )
-
             connection.close()
             return SendMessageToRabbitMQ(success=True, response_message="Message sent to RabbitMQ successfully.")
         except Exception as e:
@@ -204,14 +261,9 @@ class UpdateCity(graphene.Mutation):
         except City.DoesNotExist:
             print(f"City with id {customer_id} does not exist")
             raise Exception("City not found")
-
-        # Atualiza latitude e longitude
         city.latitude = latitude
         city.longitude = longitude
-
-        # Realiza reverse geocoding para obter nome, estado, pais, regiao
         try:
-            # URL da API de reverse geocoding do Nominatim
             geocode_url = "https://nominatim.openstreetmap.org/reverse"
             params = {
                 'format': 'jsonv2',
@@ -220,23 +272,19 @@ class UpdateCity(graphene.Mutation):
                 'addressdetails': 1,
             }
             headers = {
-                'User-Agent': 'YourAppName/1.0 (your.email@example.com)'  
+                'User-Agent': 'YourAppName/1.0 (your.email@example.com)'
             }
             response = requests.get(geocode_url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
-
             address = data.get('address', {})
-            # Atualiza os campos com base nos dados retornados
             city.nome = address.get('city') or address.get('town') or address.get('village') or address.get('hamlet') or city.nome
             city.estado = address.get('state') or city.estado
             city.pais = address.get('country') or city.pais
             city.regiao = address.get('region') or address.get('state_district') or city.regiao
-
         except requests.RequestException as e:
             print(f"Reverse geocoding failed: {e}")
             raise Exception("Failed to perform reverse geocoding")
-
         city.save()
         print(f"Updated city {customer_id}: nome={city.nome}, estado={city.estado}, pais={city.pais}, regiao={city.regiao}, latitude={city.latitude}, longitude={city.longitude}")
         return UpdateCity(city=city)
@@ -247,7 +295,7 @@ class Mutation(graphene.ObjectType):
     create_product = CreateProduct.Field()
     send_message_to_rabbitmq = SendMessageToRabbitMQ.Field()
     create_city = CreateCity.Field()
-    update_city = UpdateCity.Field()  # Adicione a mutation para atualizar cidade
+    update_city = UpdateCity.Field()
 
 # Definir o esquema
 schema = graphene.Schema(query=Query, mutation=Mutation)

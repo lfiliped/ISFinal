@@ -129,7 +129,7 @@ services:
       - db
     environment:
       NEXT_PUBLIC_URL: "http://graphql-server:8001"
-    # Se quiser sobreescrever o comando do Dockerfile, poderia usar:
+
     command: ["npm", "run", "dev"]
 
   db:
