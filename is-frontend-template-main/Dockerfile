@@ -1,24 +1,19 @@
-# Use the Node.js base image
 FROM node:18-alpine
 
-# Set the working directory
 WORKDIR /app
 
-# Update npm to the latest version
+# Atualiza o NPM se quiser
 RUN npm install -g npm@10.9.2
 
-# Copy package.json and install dependencies
+# Instala as dependências
 COPY package*.json ./
 RUN npm install --force
 
-# Copy the source code
+# Copia o código-fonte
 COPY . .
 
-# Build the application
-RUN npm run build
-
-# Expose the port
+# Expondo a porta local (caso use 3000)
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+# O importante: deixe o "dev" rodar ao iniciar o container
+CMD ["npm", "run", "dev"]

@@ -6,8 +6,8 @@ services:
     ports:
       - "50051:50051"
     volumes:
-      - csv:/app/csv    # Monta o volume para os CSV
-      - xml:/app/xml    # Monta o volume para os XML
+      - csv:/app/csv
+      - xml:/app/xml
     environment:
       - GRPC_SERVER_PORT=50051
       - MAX_WORKERS=10
@@ -32,8 +32,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - csv:/app/csv    # Volume para os CSV
-      - xml:/app/xml    # Volume para os XML
+      - csv:/app/csv
+      - xml:/app/xml
     environment:
       - GRPC_PORT=50051
       - GRPC_HOST=grpc-server
@@ -113,6 +113,24 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./is-frontend-template-main
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    depends_on:
+      - grpc-server
+      - rest-api-server
+      - rabbitmq
+      - worker
+      - graphql-server
+      - db
+    environment:
+      NEXT_PUBLIC_URL: "http://graphql-server:8001"
+    # Se quiser sobreescrever o comando do Dockerfile, poderia usar:
+    command: ["npm", "run", "dev"]
 
   db:
     image: postgres:latest
