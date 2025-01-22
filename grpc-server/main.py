@@ -87,9 +87,9 @@ def SendRabbitMQMessage(message):
             )
         )
         channel = connection.channel()
-        channel.queue_declare(queue="csv_chunks", durable=True)
+        channel.queue_declare(queue="XML", durable=True)
 
-        channel.basic_publish(exchange='', routing_key="csv_chunks", body=message)
+        channel.basic_publish(exchange='', routing_key="XML", body=message)
         logger.info(f"Mensagem enviada para RabbitMQ: {message}")
 
         connection.close()
@@ -102,7 +102,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
         pass
 
     def SendFile(self, request, context):
-        # Decide o diretório de destino com base na extensão do arquivo
+        # Escolher diretorio
         ext = request.file_mime.lower()
         if ext == ".csv":
             target_path = CSV_PATH
@@ -120,13 +120,12 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
         logger.info(f"File saved at: {file_path}")
 
         try:
-            # Conectar ao banco de dados
+            # Conectar a bd
             conn = pg8000.connect(
                 user=DBUSERNAME, password=DBPASSWORD, host=DBHOST, port=int(DBPORT), database=DBNAME
             )
             cursor = conn.cursor()
-
-            # **Criar tabela de cidades (cities)**
+            # Criar tabela de cidades (cities)
             create_table_cities = """
             CREATE TABLE IF NOT EXISTS cities (
                 customer_id VARCHAR(50) PRIMARY KEY,
@@ -139,8 +138,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 longitude DECIMAL(9,6)
             );
             """
-            cursor.execute(create_table_cities)
-            
+            cursor.execute(create_table_cities)           
             # Criar tabela de pedidos (orders)
             create_table_orders = """
             CREATE TABLE IF NOT EXISTS orders (
@@ -152,7 +150,6 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             );
             """
             cursor.execute(create_table_orders)
-
             # Criar tabela de produtos (products)
             create_table_products = """
             CREATE TABLE IF NOT EXISTS products (
@@ -166,19 +163,15 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             );
             """
             cursor.execute(create_table_products)
-
-            # Confirmar as alterações no banco de dados
+            # Confirmar as alterações na bd
             conn.commit()
-
             logger.info("Tables created successfully.")
             return server_services_pb2.SendFileResponseBody(success=True)
-
         except Exception as e:
             logger.error(f"Error: {str(e)}", exc_info=True)
             context.set_details(f"Failed: {str(e)}")
             context.set_code(grpc.StatusCode.INTERNAL)
             return server_services_pb2.SendFileResponseBody(success=False)
-
         finally:
             if conn:
                 cursor.close()
@@ -193,14 +186,14 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 )
             )
             channel = connection.channel()
-            channel.queue_declare(queue="csv_chunks", durable=True)
+            channel.queue_declare(queue="REQUESTS", durable=True)
 
             for chunk in request_iterator:
                 logger.info(f"Enviando chunk para RabbitMQ: {chunk.data[:50]}...")  # Log apenas os primeiros 50 caracteres
-                channel.basic_publish(exchange="", routing_key="csv_chunks", body=chunk.data)
+                channel.basic_publish(exchange="", routing_key="REQUESTS", body=chunk.data)
 
             logger.info("Enviando marcador de EOF")
-            channel.basic_publish(exchange="", routing_key="csv_chunks", body="__EOF__")
+            channel.basic_publish(exchange="", routing_key="REQUESTS", body="__EOF__")
             connection.close()
             return server_services_pb2.SendFileChunksResponse(message="Chunks sent to RabbitMQ successfully!")
         except Exception as e:
@@ -225,7 +218,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 SendRabbitMQMessage(f"Erro: Nome do arquivo inválido: '{file_name}'")
                 return server_services_pb2.ConvertCSVToXMLResponse(success=False, message="Nome do arquivo inválido.")
 
-            # Construindo o caminho completo do arquivo CSV utilizando o volume CSV
+            # Constroi o caminho completo do arquivo CSV utilizando o volume CSV
             csv_path = os.path.join(CSV_PATH, file_name)
             enriched_csv_path = os.path.join(CSV_PATH, f"enriched_{file_name}")
             logger.info(f"Caminho completo do CSV: {csv_path}")
@@ -258,7 +251,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                     child = etree.SubElement(record, sanitized_col_name)
                     child.text = str(value)
 
-            # Salvando o arquivo XML no volume XML
+            # Guarda o arquivo XML no volume XML
             output_path = os.path.join(XML_PATH, file_name.replace('.csv', '.xml'))
             tree = etree.ElementTree(root)
             tree.write(output_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
@@ -337,9 +330,9 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             search_term = request.search_term.strip()
             logger.info(f"Arquivo XML: '{xml_file_name}', Termo de pesquisa: '{search_term}'")
 
-            # Construindo o caminho completo do arquivo XML utilizando o volume XML
+            # Constroi o caminho completo do arquivo XML
             xml_path = os.path.join(XML_PATH, xml_file_name)
-            if not os.path.exists(xml_path):
+            if not os.path.exists(  ):
                 context.set_details("Arquivo XML não encontrado.")
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 SendRabbitMQMessage(f"Erro: Arquivo XML não encontrado: '{xml_path}'")
@@ -353,13 +346,13 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
             # Obter o nó pai de cada elemento encontrado e converter para string
             results = []
             for elem in elements:
-                parent = elem.getparent()  # Obter o nó pai
+                parent = elem.getparent()  
                 if parent is not None:
                     results.append(etree.tostring(parent, pretty_print=True).decode("utf-8"))
 
             logger.info(f"Resultados encontrados: {len(results)}")
 
-            # Enviando mensagem de sucesso para o RabbitMQ
+           
             success_message = f"Sucesso: Pesquisa de termo '{search_term}' no arquivo '{xml_file_name}' concluída. {len(results)} resultados encontrados."
             SendRabbitMQMessage(success_message)
 
@@ -409,13 +402,13 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
         Ordena um arquivo XML com base em um campo específico e envia o resultado para o RabbitMQ.
         """
         try:
-            # Captura o nome do arquivo e os parâmetros de ordenação
+            # Guarda o nome do arquivo e os parâmetros de ordenação
             xml_file_name = request.xml_file_name.strip()
             sort_by = request.sort_by.strip()
             order = request.order.strip().lower()
             logger.info(f"Ordenando XML: '{xml_file_name}' por '{sort_by}' em ordem '{order}'")
 
-            # Caminho do arquivo XML utilizando o volume XML
+            # Caminho do arquivo XML
             xml_path = os.path.join(XML_PATH, xml_file_name)
 
             # Verificar se o arquivo existe
@@ -453,7 +446,7 @@ class SendFileService(server_services_pb2_grpc.SendFileServiceServicer):
                 reverse=reverse,
             )
 
-            # Salvar o XML ordenado no volume XML
+            # guarda o XML ordenado no volume XML
             sorted_xml_path = os.path.join(XML_PATH, f"sorted_{xml_file_name}")
             tree.write(sorted_xml_path, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 

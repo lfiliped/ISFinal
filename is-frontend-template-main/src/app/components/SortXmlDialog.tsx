@@ -126,7 +126,7 @@ const SortXmlDialog = React.forwardRef((_, ref) => {
       }
 
       const data = await response.json();
-      setSortedXml(data.sorted_xml); // Ajuste conforme a resposta do backend
+      setSortedXml(data.sorted_xml); 
       toast.success("XML ordenado com sucesso!");
     } catch (error) {
       console.error("Erro ao ordenar XML:", error);

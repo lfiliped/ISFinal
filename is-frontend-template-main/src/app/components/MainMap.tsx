@@ -94,8 +94,6 @@ const LeafleatMap = ({ cities, updatePoint } : { cities: City[], updatePoint: (c
 
         try {
             const promise_update = await updatePoint(customerId, _lat, _lng)
-
-            // Verifica se a resposta contém status de erro
             if(promise_update.status){
                 console.error(promise_update)
                 toast.error('Erro ao salvar os dados.')
@@ -110,10 +108,8 @@ const LeafleatMap = ({ cities, updatePoint } : { cities: City[], updatePoint: (c
 
             if(idx > -1){
                 const new_clusters: any[] = [...clusters]
-
                 new_clusters[idx].properties = {
                     ...new_clusters[idx].properties,
-                    // Atualiza os campos com os dados retornados
                     nome: updatedCity.nome,
                     estado: updatedCity.estado,
                     pais: updatedCity.pais,
@@ -121,7 +117,6 @@ const LeafleatMap = ({ cities, updatePoint } : { cities: City[], updatePoint: (c
                     latitude: updatedCity.latitude,
                     longitude: updatedCity.longitude
                 }
-
                 new_clusters[idx].geometry = {
                     ...new_clusters[idx].geometry,
                     coordinates: [updatedCity.longitude, updatedCity.latitude]
@@ -130,10 +125,8 @@ const LeafleatMap = ({ cities, updatePoint } : { cities: City[], updatePoint: (c
                 setClusters(new_clusters)
                 toast.success('Cidade atualizada com sucesso!')
             }
-        } catch (error: any) {
-            
+        } catch (error: any) {            
         } finally {
-            // Recarregar a página completamente, independentemente do sucesso ou erro
             window.location.reload()
         }
     }

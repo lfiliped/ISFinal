@@ -52,7 +52,7 @@ class Query(graphene.ObjectType):
     city_by_customer_id = graphene.Field(CityType, customer_id=graphene.String(required=True))
     cities = graphene.List(CityType, nome=graphene.String())
     
-    # >>> NOVA QUERY: Consulta de orders via REST API <<<
+    
     orders_from_rest = graphene.List(OrderType)
 
     def resolve_all_orders(self, info, **kwargs):
@@ -110,11 +110,10 @@ class Query(graphene.ObjectType):
             print(f"Response text: {response.text}")
             if response.status_code == 200:
                 data = response.json()
-                # Se os dados estiverem sob a chave "orders" ou forem uma lista direta
                 orders = data if isinstance(data, list) else data.get("orders", [])
                 result = []
                 for o in orders:
-                    # Converter as strings de data para objetos date do Python
+                    # Converter as strings de data para objetos date 
                     order_date = (
                         datetime.strptime(o.get("order_date"), "%Y-%m-%d").date()
                         if o.get("order_date")
@@ -151,7 +150,7 @@ class CreateOrder(graphene.Mutation):
     order = graphene.Field(OrderType)
 
     def mutate(self, info, order_id, customer_id, order_date, ship_date):
-        # Para criar o order, precisamos obter o objeto da cidade usando o customer_id
+       
         from .models import City  # ou importe no início do arquivo, se preferir
         try:
             city = City.objects.get(customer_id=customer_id)
@@ -166,7 +165,7 @@ class CreateOrder(graphene.Mutation):
         order.save()
         return CreateOrder(order=order)
 
-# Mutation para criar um produto
+
 class CreateProduct(graphene.Mutation):
     class Arguments:
         product_id = graphene.String(required=True)
@@ -188,7 +187,7 @@ class CreateProduct(graphene.Mutation):
         product.save()
         return CreateProduct(product=product)
 
-# Mutation para criar uma cidade
+
 class CreateCity(graphene.Mutation):
     class Arguments:
         customer_id = graphene.String(required=True)
@@ -272,7 +271,6 @@ class UpdateCity(graphene.Mutation):
                 'addressdetails': 1,
             }
             headers = {
-                'User-Agent': 'YourAppName/1.0 (your.email@example.com)'
             }
             response = requests.get(geocode_url, params=params, headers=headers)
             response.raise_for_status()

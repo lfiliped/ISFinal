@@ -120,7 +120,7 @@ const XmlViewerDialog = React.forwardRef((_, ref) => {
       }
 
       const data = await response.json();
-      // Se data.results for um array, junta os registros em um único XML com uma tag Root
+      // Se data.results for um array, junta os registros em um único XML
       if (Array.isArray(data.results)) {
         const joinedXml = `<Root>\n${data.results.join("\n")}\n</Root>`;
         setXmlFilteredBySearch(joinedXml);

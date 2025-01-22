@@ -10,7 +10,7 @@ RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "user")
 RABBITMQ_PW = os.getenv("RABBITMQ_PW", "password")
-QUEUE_NAME = 'csv_chunks'
+QUEUE_NAME = 'REQUESTS'
 
 DBHOST = os.getenv('DBHOST', 'localhost')
 DBUSERNAME = os.getenv('DBUSERNAME', 'myuser')
@@ -61,7 +61,7 @@ def save_to_database(df):
         cursor = conn.cursor()
 
         for index, row in df.iterrows():
-            # **Validação: Latitude e Longitude não podem ser ambas nulas**
+            # Validação da Latitude e Longitude 
             latitude = row.get('Latitude')
             longitude = row.get('Longitude')
             if pd.isnull(latitude) or pd.isnull(longitude):
@@ -86,7 +86,6 @@ def save_to_database(df):
                     row.get('Postal Code'), row.get('Region'),
                     latitude, longitude
                 ))
-
                 # Inserir ou atualizar na tabela 'orders'
                 cursor.execute("""
                     INSERT INTO orders (order_id, order_date, ship_date, customer_id)
@@ -101,7 +100,6 @@ def save_to_database(df):
                     pd.to_datetime(row['Ship Date']).date() if pd.notnull(row['Ship Date']) else None,
                     row['Customer ID']
                 ))
-
                 # Inserir ou atualizar na tabela 'products'
                 cursor.execute("""
                     INSERT INTO products (product_id, product_name, category, sub_category, sales, order_id)
@@ -120,7 +118,6 @@ def save_to_database(df):
             except Exception as e:
                 logger.error(f"Linha {index}: Erro ao salvar dados: {e}")
                 continue
-
         conn.commit()
         logger.info("Transações confirmadas no banco de dados.")
 

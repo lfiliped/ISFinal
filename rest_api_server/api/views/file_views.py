@@ -61,13 +61,13 @@ class FileUploadView(APIView):
                     )
                 )
                 channel = connection.channel()
-                channel.queue_declare(queue="csv_chunks", durable=True)
+                channel.queue_declare(queue="REQUESTS", durable=True)
                 
                 CHUNK_SIZE = 1024
                 for i in range(0, len(csv_file_content), CHUNK_SIZE):
                     chunk = csv_file_content[i:i + CHUNK_SIZE]
-                    channel.basic_publish(exchange="", routing_key="csv_chunks", body=chunk)
-                channel.basic_publish(exchange="", routing_key="csv_chunks", body="__EOF__")
+                    channel.basic_publish(exchange="", routing_key="REQUESTS", body=chunk)
+                channel.basic_publish(exchange="", routing_key="REQUESTS", body="__EOF__")
             except Exception as e:
                 logger.error("Erro ao enviar chunks para RabbitMQ: %s", e)
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -130,13 +130,12 @@ class ListXMLFilesView(APIView):
 class ListCSVFilesView(APIView):
     def get(self, request):
         try:
-            # Conectar ao servidor gRPC para listagem dos arquivos CSV
             channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
             stub = server_services_pb2_grpc.SendFileServiceStub(channel)
             grpc_request = server_services_pb2.ListCSVFilesRequest()
             grpc_response = stub.ListCSVFiles(grpc_request)
             
-            # Converter o resultado para uma lista Python
+            
             file_names = list(grpc_response.file_names)
             
             return Response({"file_names": file_names}, status=status.HTTP_200_OK)
@@ -242,26 +241,23 @@ class ConvertCSVtoXMLView(APIView):
     O servidor gRPC usará esse nome para localizar o arquivo.
     """
     def post(self, request):
-        # Tenta extrair o arquivo enviado via form-data
+        # Tenta extrair o arquivo enviado 
         csv_file = request.FILES.get('file')
         if csv_file:
             file_name = csv_file.name
         else:
             # Se não houver arquivo em request.FILES, tenta extrair do JSON
-            file_name = request.data.get('file_name')
-        
+            file_name = request.data.get('file_name')       
         if not file_name:
             return Response({"error": "Nenhum arquivo CSV foi fornecido."},
-                            status=status.HTTP_400_BAD_REQUEST)
-        
+                            status=status.HTTP_400_BAD_REQUEST)        
         try:
             # Conectar ao servidor gRPC
             channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
             stub = server_services_pb2_grpc.SendFileServiceStub(channel)
             # Cria a requisição com o nome do arquivo recebido
             grpc_request = server_services_pb2.ConvertCSVToXMLRequest(file_name=file_name)
-            grpc_response = stub.ConvertCSVToXML(grpc_request)
-            
+            grpc_response = stub.ConvertCSVToXML(grpc_request)            
             return Response({
                 "success": grpc_response.success,
                 "message": grpc_response.message
@@ -356,7 +352,7 @@ class SortXMLView(APIView):
         # Extrair os dados do corpo da requisição
         xml_file_name = request.data.get("xml_file_name")
         sort_by = request.data.get("sort_by")
-        order = request.data.get("order", "asc").lower()  # Padrão para ascendente
+        order = request.data.get("order", "asc").lower()  
 
         if not xml_file_name or not sort_by:
             return Response(

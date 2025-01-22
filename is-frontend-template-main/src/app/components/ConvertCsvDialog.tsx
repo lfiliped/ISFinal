@@ -59,7 +59,7 @@ const ConvertCsvDialog = React.forwardRef((props: ConvertCsvDialogProps, ref) =>
 
     setLoading(true);
     try {
-      // Chama o endpoint para converter CSV para XML (o endpoint espera um JSON com o file_name)
+      // Chama o endpoint para converter CSV para XML
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_REST_API_BASE_URL}/api/convert-csv-to-xml/`,
         {

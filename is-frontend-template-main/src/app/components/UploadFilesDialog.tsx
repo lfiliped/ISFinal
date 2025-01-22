@@ -122,7 +122,7 @@ const UploadFilesDialog = React.forwardRef((props, ref) => {
               mt: 1
             }}
           >
-            <Typography variant="h6">Upload de Arquivo de Esquema (.xsd)</Typography>
+            <Typography variant="h6">Upload de Arquivo  (.xsd)</Typography>
             {schemaFile ? (
               <>
                 <Typography variant="body1">Arquivo Selecionado: {schemaFile.name}</Typography>
@@ -132,7 +132,7 @@ const UploadFilesDialog = React.forwardRef((props, ref) => {
               </>
             ) : (
               <Button variant="contained" component="label">
-                Selecionar Arquivo de Esquema
+                Selecionar Arquivo 
                 <input type="file" hidden onChange={handleSchemaFileChange} accept=".xsd, .xmlschema" />
               </Button>
             )}
