@@ -314,34 +314,51 @@ class ValidateXMLView(APIView):
         
 class XMLTextSearchView(APIView):
     def post(self, request):
-        # Obter os dados da solicitação
-        xml_file_name = request.data.get("xml_file_name")
-        search_term = request.data.get("search_term")
-
-        if not xml_file_name or not search_term:
+        try:
+            xml_file_name = request.data.get("xml_file_name")
+            search_term = request.data.get("search_term")
+            
+            if not xml_file_name or not search_term:
+                logger.warning("Nome do arquivo XML ou termo de pesquisa não fornecido.")
+                return Response(
+                    {"message": "Nome do arquivo XML e termo de pesquisa são obrigatórios."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            file_path = os.path.join(XML_PATH, xml_file_name)
+            if not os.path.exists(file_path):
+                logger.error(f"Arquivo XML não encontrado: {file_path}")
+                return Response(
+                    {"message": "Arquivo XML não encontrado."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Parseando o XML
+            tree = etree.parse(file_path)
+            # Realizando a busca com XPath
+            elements = tree.xpath(f"//*[contains(text(), '{search_term}')]")
+            
+            # Coletando os elementos pais dos nós encontrados
+            results = [
+                etree.tostring(elem.getparent(), pretty_print=True).decode("utf-8")
+                for elem in elements if elem.getparent() is not None
+            ]
+            
+            logger.info(f"Pesquisa realizada com sucesso. Termo: '{search_term}'. Resultados encontrados: {len(results)}")
+            return Response({"results": results}, status=status.HTTP_200_OK)
+        
+        except etree.XMLSyntaxError as e:
+            logger.exception(f"Erro de sintaxe XML: {str(e)}")
             return Response(
-                {"error": "Both XML file name and search term are required."},
+                {"message": "Erro de sintaxe no arquivo XML."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Conectar ao servidor gRPC
-        channel = grpc.insecure_channel(f"{GRPC_HOST}:{GRPC_PORT}")
-        stub = server_services_pb2_grpc.SendFileServiceStub(channel)
-
-        try:
-            grpc_request = server_services_pb2.TextSearchRequest(
-                xml_file_name=xml_file_name,
-                search_term=search_term
+        except Exception as e:
+            logger.exception(f"Erro inesperado no XMLTextSearchView: {str(e)}")
+            return Response(
+                {"message": "Erro interno do servidor."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            grpc_response = stub.TextSearch(grpc_request)
-
-            # Converter os resultados para uma lista serializável
-            results = list(grpc_response.results)
-
-            return Response({"results": results}, status=status.HTTP_200_OK)
-        except grpc.RpcError as e:
-            return Response({"error": f"gRPC call failed: {e.details()}"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
 class SortXMLView(APIView):

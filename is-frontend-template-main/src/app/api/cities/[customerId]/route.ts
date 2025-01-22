@@ -1,23 +1,22 @@
-// app/api/cities/[customerId]/route.ts
+// src/app/api/cities/[customerId]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 
-export async function PUT(req: NextRequest, context: { params: { customerId: string } }) {
-    // Await the params if necessary (see Next.js parameter handling below)
-    const { customerId } = context.params;
+export async function PUT(req: NextRequest, context: { params: Promise<{ customerId: string }> }) {
+    const { customerId } = await context.params;
 
     if (!customerId) {
-        console.error(`Customer ID is missing in the request parameters.`);
+        console.error(`Customer ID está faltando nos parâmetros da requisição.`);
         return NextResponse.json(
-            { status: 400, message: 'Customer ID is required.' },
+            { status: 400, message: 'Customer ID é obrigatório.' },
             { status: 400 }
         );
     }
 
     const request_body = await req.json();
 
-    console.log(`Received PUT request to update city with id: ${customerId}`);
-    console.log(`New data:`, request_body);
+    console.log(`Recebida requisição PUT para atualizar cidade com id: ${customerId}`);
+    console.log(`Novos dados:`, request_body);
 
     const headers = {
         'Content-Type': 'application/json',
@@ -61,10 +60,10 @@ export async function PUT(req: NextRequest, context: { params: { customerId: str
 
         const data = await response.json();
 
-        console.log(`GraphQL Response:`, data);
+        console.log(`Resposta do GraphQL:`, data);
 
         if (!response.ok) {
-            console.error(`GraphQL Error: ${response.statusText}`);
+            console.error(`Erro no GraphQL: ${response.statusText}`);
             return NextResponse.json(
                 { status: response.status, message: response.statusText },
                 { status: response.status }
@@ -72,21 +71,21 @@ export async function PUT(req: NextRequest, context: { params: { customerId: str
         }
 
         if (data.errors) {
-            console.error(`GraphQL Errors: ${JSON.stringify(data.errors)}`);
+            console.error(`Erros no GraphQL: ${JSON.stringify(data.errors)}`);
             return NextResponse.json(
                 { status: 400, message: data.errors },
                 { status: 400 }
             );
         }
 
-        console.log(`City updated successfully:`, data);
+        console.log(`Cidade atualizada com sucesso:`, data);
 
         return NextResponse.json(data);
 
-    } catch (error) {
-        console.error(`Fetch Error: ${error}`);
+    } catch (error: any) {
+        console.error(`Erro na requisição: ${error}`);
         return NextResponse.json(
-            { status: 500, message: 'Internal Server Error' },
+            { status: 500, message: 'Erro Interno do Servidor' },
             { status: 500 }
         );
     }

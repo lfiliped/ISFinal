@@ -271,6 +271,7 @@ class UpdateCity(graphene.Mutation):
                 'addressdetails': 1,
             }
             headers = {
+                'User-Agent': 'ISFinalApp/1.0 (diasf@example.com)'  
             }
             response = requests.get(geocode_url, params=params, headers=headers)
             response.raise_for_status()
@@ -283,6 +284,7 @@ class UpdateCity(graphene.Mutation):
         except requests.RequestException as e:
             print(f"Reverse geocoding failed: {e}")
             raise Exception("Failed to perform reverse geocoding")
+
         city.save()
         print(f"Updated city {customer_id}: nome={city.nome}, estado={city.estado}, pais={city.pais}, regiao={city.regiao}, latitude={city.latitude}, longitude={city.longitude}")
         return UpdateCity(city=city)
